@@ -430,6 +430,7 @@ h1 {
   padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
   display: grid;
   place-items: center;
+  opacity: 0;
   background: rgba(2, 12, 16, 0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -442,11 +443,94 @@ h1 {
 .detail-panel {
   position: relative;
   width: min(920px, 94vw);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
   padding: clamp(26px, 3vw, 48px);
   background: linear-gradient(145deg, #123640, #081f28);
   border: 1px solid rgba(101, 220, 157, 0.38);
   border-radius: 30px;
   box-shadow: 0 40px 100px rgba(0, 0, 0, 0.45);
+  transform-origin: var(--detail-origin-x, 50%) var(--detail-origin-y, 50%);
+  will-change: transform, opacity, filter;
+}
+
+.detail-overlay.is-open {
+  animation: detail-overlay-in 240ms ease-out both;
+}
+
+.detail-overlay.is-open .detail-panel {
+  animation: detail-panel-in 540ms cubic-bezier(0.2, 0.86, 0.24, 1.12) both;
+}
+
+.detail-overlay.is-closing {
+  animation: detail-overlay-out 220ms ease-in both;
+}
+
+.detail-overlay.is-closing .detail-panel {
+  animation: detail-panel-out 220ms ease-in both;
+}
+
+.detail-overlay.is-open .detail-overview > div,
+.detail-overlay.is-open .detail-metrics article,
+.detail-overlay.is-open .detail-updated {
+  animation: detail-item-in 360ms ease-out both;
+}
+
+.detail-overlay.is-open .detail-overview > div:nth-child(1) { animation-delay: 150ms; }
+.detail-overlay.is-open .detail-overview > div:nth-child(2) { animation-delay: 185ms; }
+.detail-overlay.is-open .detail-overview > div:nth-child(3) { animation-delay: 220ms; }
+.detail-overlay.is-open .detail-overview > div:nth-child(4) { animation-delay: 255ms; }
+.detail-overlay.is-open .detail-overview > div:nth-child(5) { animation-delay: 290ms; }
+.detail-overlay.is-open .detail-metrics article:nth-child(1) { animation-delay: 300ms; }
+.detail-overlay.is-open .detail-metrics article:nth-child(2) { animation-delay: 340ms; }
+.detail-overlay.is-open .detail-metrics article:nth-child(3) { animation-delay: 380ms; }
+.detail-overlay.is-open .detail-updated { animation-delay: 410ms; }
+
+@keyframes detail-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes detail-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes detail-panel-in {
+  0% {
+    opacity: 0;
+    filter: blur(8px);
+    transform: scale(0.24) translateY(18px);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1.035) translateY(-2px);
+  }
+  76% { transform: scale(0.985); }
+  100% { transform: scale(1); }
+}
+
+@keyframes detail-panel-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.82) translateY(8px);
+  }
+}
+
+@keyframes detail-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .detail-close {
@@ -500,7 +584,7 @@ h1 {
 }
 
 .detail-overview {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin: 30px 0 18px;
 }
 
@@ -561,6 +645,10 @@ h1 {
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .detail-overview {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 640px) {
@@ -600,5 +688,7 @@ h1 {
   *::after {
     scroll-behavior: auto !important;
     transition: none !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

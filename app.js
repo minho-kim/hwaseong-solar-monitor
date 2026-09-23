@@ -3,7 +3,7 @@
 const SUPABASE_URL = "https://ifdqlwxgqgsvnawmhlfc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_lkVhLJDe8WmOPzsWOMkKdg_pjVwVS-h";
 const DASHBOARD_SLUG = "hwaseong-renewable-energy";
-const DEFAULT_REFRESH_MS = 60_000;
+const DEFAULT_REFRESH_MS = 180_000;
 
 const configuredPlants = [
   [1, "1호기", "RE빛제1호 태양광발전소", "", 189.38, "NREMS"],
@@ -48,13 +48,16 @@ const elements = {
   qualityMessage: document.querySelector("#quality-message"),
   sourceList: document.querySelector("#source-list"),
   overlay: document.querySelector("#detail-overlay"),
+  detailPanel: document.querySelector("#detail-panel"),
   detailClose: document.querySelector("#detail-close"),
   fullscreenButton: document.querySelector("#fullscreen-button"),
 };
 
 let currentData = null;
 let refreshTimer = null;
+let detailCloseTimer = null;
 let selectedPlantOrder = null;
+let detailTrigger = null;
 
 function formatPower(value, { compact = false } = {}) {
   const number = Number(value);
@@ -96,10 +99,21 @@ function stateLabel(plant) {
   return labels[plant.operational_state] ?? labels.unknown;
 }
 
+function communicationLabel(state) {
+  const labels = {
+    normal: "정상",
+    delayed: "수집 지연",
+    offline: "연결 끊김",
+    unknown: "확인 중",
+  };
+  return labels[state] ?? labels.unknown;
+}
+
 function renderPlants(plants) {
   const fragment = document.createDocumentFragment();
   for (const plant of plants) {
     const card = elements.template.content.firstElementChild.cloneNode(true);
+    card.dataset.plantOrder = String(plant.display_order);
     const [statusText, statusClass] = stateLabel(plant);
     card.querySelector(".plant-number").textContent = plant.short_name;
     card.querySelector(".plant-name").textContent = plant.full_name;
@@ -116,11 +130,11 @@ function renderPlants(plants) {
       card.setAttribute("tabindex", "0");
       card.setAttribute("aria-label", `${plant.short_name} 상세 현황 보기`);
       card.querySelector(".detail-hint").hidden = false;
-      card.addEventListener("click", () => openDetail(plant));
+      card.addEventListener("click", () => openDetail(plant, card));
       card.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          openDetail(plant);
+          openDetail(plant, card);
         }
       });
     }
@@ -156,10 +170,10 @@ function renderDashboard(data) {
   const sources = Array.isArray(data.sources) ? data.sources : [];
   const hasSourceError = sources.some((source) => source.sync_state === "error");
   if (data.is_live) {
-    elements.dataState.textContent = "자동 갱신";
+    elements.dataState.textContent = "3분 자동 갱신";
     elements.qualityBadge.className = "quality-badge live";
-    elements.qualityBadge.textContent = "실시간 연동";
-    elements.qualityMessage.textContent = "두 수집 사이트에서 자동으로 갱신되고 있습니다.";
+    elements.qualityBadge.textContent = "자동 연동";
+    elements.qualityMessage.textContent = "두 수집 사이트에서 3분마다 갱신되고 있습니다.";
   } else if (hasSourceError) {
     elements.dataState.textContent = "부분 연동";
     elements.qualityBadge.className = "quality-badge error";
@@ -227,27 +241,59 @@ function populateDetail(plant) {
   const [statusText] = stateLabel(plant);
   document.querySelector("#detail-number").textContent = plant.short_name;
   document.querySelector("#detail-title").textContent = plant.full_name;
+  document.querySelector("#detail-location").textContent = plant.location_label || "화성시";
   document.querySelector("#detail-capacity").textContent = formatPower(plant.capacity_kw);
   document.querySelector("#detail-provider").textContent = plant.provider;
   document.querySelector("#detail-status").textContent = statusText;
+  document.querySelector("#detail-communication").textContent = communicationLabel(plant.communication_state);
   document.querySelector("#detail-current").textContent = formatPower(plant.current_kw);
   document.querySelector("#detail-today").textContent = formatEnergy(plant.today_kwh);
   document.querySelector("#detail-lifetime").textContent = formatEnergy(plant.lifetime_kwh);
   document.querySelector("#detail-updated-at").textContent = formatDateTime(plant.fetched_at);
 }
 
-function openDetail(plant) {
+function setDetailOrigin(sourceCard) {
+  if (!sourceCard) {
+    elements.detailPanel.style.removeProperty("--detail-origin-x");
+    elements.detailPanel.style.removeProperty("--detail-origin-y");
+    return;
+  }
+  const cardRect = sourceCard.getBoundingClientRect();
+  const panelRect = elements.detailPanel.getBoundingClientRect();
+  const originX = cardRect.left + cardRect.width / 2 - panelRect.left;
+  const originY = cardRect.top + cardRect.height / 2 - panelRect.top;
+  elements.detailPanel.style.setProperty("--detail-origin-x", `${originX}px`);
+  elements.detailPanel.style.setProperty("--detail-origin-y", `${originY}px`);
+}
+
+function openDetail(plant, sourceCard) {
+  window.clearTimeout(detailCloseTimer);
   selectedPlantOrder = plant.display_order;
+  detailTrigger = sourceCard;
   populateDetail(plant);
   elements.overlay.hidden = false;
+  elements.overlay.classList.remove("is-open", "is-closing");
+  setDetailOrigin(sourceCard);
+  void elements.overlay.offsetWidth;
+  elements.overlay.classList.add("is-open");
   document.body.style.overflow = "hidden";
   elements.detailClose.focus();
 }
 
 function closeDetail() {
-  elements.overlay.hidden = true;
+  if (elements.overlay.hidden || elements.overlay.classList.contains("is-closing")) return;
+  elements.overlay.classList.remove("is-open");
+  elements.overlay.classList.add("is-closing");
   document.body.style.overflow = "";
   selectedPlantOrder = null;
+  const trigger = detailTrigger;
+  detailTrigger = null;
+  detailCloseTimer = window.setTimeout(() => {
+    elements.overlay.hidden = true;
+    elements.overlay.classList.remove("is-closing");
+    const currentTrigger = document.querySelector(`[data-plant-order="${trigger?.dataset.plantOrder ?? ""}"]`);
+    if (currentTrigger instanceof HTMLElement) currentTrigger.focus();
+  }, 240);
 }
 
 async function toggleFullscreen() {
