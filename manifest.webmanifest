@@ -1,0 +1,10 @@
+{
+  "name": "화성시민재생에너지발전협동조합 발전 현황",
+  "short_name": "화성 발전 현황",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#06161d",
+  "theme_color": "#071a22",
+  "icons": []
+}

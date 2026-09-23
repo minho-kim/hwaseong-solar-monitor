@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#071a22">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="description" content="화성시민재생에너지발전협동조합 발전소 통합 모니터링 화면">
+    <title>화성시민재생에너지발전협동조합 발전 현황</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="dashboard" aria-labelledby="page-title">
+      <header class="topbar">
+        <div class="brand-block">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48" role="img">
+              <circle cx="24" cy="17" r="8"></circle>
+              <path d="M24 3v5M10.6 8.6l3.6 3.6M5 22h5M38 22h5M37.4 8.6l-3.6 3.6"></path>
+              <path d="M8 33h32l-4 10H12L8 33Z"></path>
+              <path d="m13 33 3-8h16l3 8M19 25l-1 8M29 25l1 8"></path>
+            </svg>
+          </span>
+          <div>
+            <p class="eyebrow">우리 동네 햇빛이 만드는 에너지</p>
+            <h1 id="page-title">화성시민재생에너지발전협동조합</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div class="update-box" aria-live="polite">
+            <span id="connection-dot" class="connection-dot"></span>
+            <span id="data-state">데이터 불러오는 중</span>
+            <strong id="updated-at">--:--</strong>
+          </div>
+          <button id="fullscreen-button" class="icon-button" type="button" aria-label="전체 화면으로 보기" title="전체 화면">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <section class="summary-grid" aria-label="전체 발전 요약">
+        <article class="summary-card capacity">
+          <span class="summary-label">총 설비용량</span>
+          <strong id="total-capacity">--</strong>
+          <span class="summary-caption"><b id="plant-count">10</b>개 발전소</span>
+        </article>
+        <article class="summary-card current">
+          <span class="summary-label">현재 출력</span>
+          <strong id="total-current">--</strong>
+          <span class="summary-caption" id="current-caption">실시간 합계</span>
+        </article>
+        <article class="summary-card today">
+          <span class="summary-label">오늘 발전량</span>
+          <strong id="total-today">--</strong>
+          <span class="summary-caption">오늘 자정부터</span>
+        </article>
+        <article class="summary-card lifetime">
+          <span class="summary-label">누적 발전량</span>
+          <strong id="total-lifetime">--</strong>
+          <span class="summary-caption">전체 발전소 합계</span>
+        </article>
+      </section>
+
+      <section class="status-strip" aria-live="polite">
+        <div class="status-message">
+          <span id="quality-badge" class="quality-badge loading">연결 중</span>
+          <span id="quality-message">발전소 데이터를 확인하고 있습니다.</span>
+        </div>
+        <div id="source-list" class="source-list" aria-label="수집 사이트 상태"></div>
+      </section>
+
+      <section id="plant-grid" class="plant-grid" aria-label="발전소별 현재 출력"></section>
+    </main>
+
+    <div id="detail-overlay" class="detail-overlay" hidden>
+      <section class="detail-panel" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+        <button id="detail-close" class="detail-close" type="button" aria-label="상세 화면 닫기">×</button>
+        <div class="detail-heading">
+          <span id="detail-number" class="detail-number">4호기</span>
+          <div>
+            <p>발전소 상세 현황</p>
+            <h2 id="detail-title">발전소명</h2>
+          </div>
+        </div>
+        <div class="detail-overview">
+          <div>
+            <span>설비용량</span>
+            <strong id="detail-capacity">--</strong>
+          </div>
+          <div>
+            <span>수집 시스템</span>
+            <strong id="detail-provider">--</strong>
+          </div>
+          <div>
+            <span>운전 상태</span>
+            <strong id="detail-status">--</strong>
+          </div>
+        </div>
+        <div class="detail-metrics">
+          <article>
+            <span>현재 발전량</span>
+            <strong id="detail-current">--</strong>
+          </article>
+          <article>
+            <span>오늘 발전량</span>
+            <strong id="detail-today">--</strong>
+          </article>
+          <article>
+            <span>누적 발전량</span>
+            <strong id="detail-lifetime">--</strong>
+          </article>
+        </div>
+        <p class="detail-updated">마지막 확인 <span id="detail-updated-at">--</span></p>
+      </section>
+    </div>
+
+    <template id="plant-card-template">
+      <article class="plant-card">
+        <div class="plant-card-head">
+          <span class="plant-number"></span>
+          <span class="plant-status"></span>
+        </div>
+        <div class="plant-copy">
+          <h2 class="plant-name"></h2>
+          <p class="plant-location"></p>
+        </div>
+        <div class="plant-output">
+          <span>현재 출력</span>
+          <strong class="plant-current"></strong>
+        </div>
+        <div class="plant-meta">
+          <span class="plant-capacity"></span>
+          <span class="detail-hint" hidden>상세 보기 <b aria-hidden="true">›</b></span>
+        </div>
+      </article>
+    </template>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
