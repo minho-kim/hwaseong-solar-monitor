@@ -10,12 +10,6 @@ const configuredPlants = [
   [2, "2호기", "RE빛 제2호기-경기기술학교", "경기기술학교", 134.19, "NREMS"],
   [3, "3호기", "RE빛제3호-경기도농업기술원", "경기도농업기술원", 99.54, "PVEYES"],
   [4, "4호기", "RE빛제4호-산지유통센터 태양광발전소", "산지유통센터", 298.24, "PVEYES", true],
-  [5, "5호기", "RE빛 제5호-화성택시쉼터", "화성택시쉼터", 144.64, "PVEYES"],
-  [6, "6호기", "RE빛 제6호-비봉면행복센터", "비봉면행복센터", 89.6, "PVEYES"],
-  [7, "7호기", "RE빛 제7호-동탄2동행복센터", "동탄2동행복센터", 48, "PVEYES"],
-  [8, "8호기", "RE빛 제8호-발안폐수처리장", "발안폐수처리장", 15.36, "PVEYES"],
-  [9, "9호기", "RE빛 제9호-바이오밸리폐수처리장", "바이오밸리폐수처리장", 50.56, "PVEYES"],
-  [10, "10호기", "RE빛 제10호-마도폐수처리장", "마도폐수처리장", 83.84, "PVEYES"],
 ].map(([display_order, short_name, full_name, location_label, capacity_kw, provider, detail_enabled = false]) => ({
   display_order,
   short_name,
@@ -157,7 +151,7 @@ function renderSources(sources = []) {
 
 function renderDashboard(data) {
   currentData = data;
-  const plants = Array.isArray(data.plants) && data.plants.length ? data.plants : configuredPlants;
+  const plants = Array.isArray(data.plants) ? data.plants : configuredPlants;
   const summary = data.summary ?? {};
   elements.totalCapacity.textContent = formatPower(summary.total_capacity_kw, { compact: true });
   elements.totalCurrent.textContent = formatPower(summary.current_kw, { compact: true });
@@ -202,10 +196,11 @@ function renderLoadError() {
   elements.qualityBadge.textContent = "데이터 연결 확인";
   elements.qualityMessage.textContent = "잠시 후 자동으로 다시 연결합니다.";
   if (!currentData) {
-    elements.totalCapacity.textContent = "1.15 MW";
+    elements.totalCapacity.textContent = "721.4 kW";
     elements.totalCurrent.textContent = "--";
     elements.totalToday.textContent = "--";
     elements.totalLifetime.textContent = "--";
+    elements.plantCount.textContent = String(configuredPlants.length);
     renderPlants(configuredPlants);
   }
 }
