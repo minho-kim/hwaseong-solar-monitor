@@ -46,6 +46,7 @@ button {
   margin: 0 auto;
   padding: clamp(16px, 2vw, 32px);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto auto 1fr;
   gap: clamp(12px, 1.3vw, 22px);
 }
@@ -659,6 +660,10 @@ h1 {
 
   .topbar {
     align-items: flex-start;
+  }
+
+  h1 {
+    overflow-wrap: break-word;
   }
 
   .eyebrow,
