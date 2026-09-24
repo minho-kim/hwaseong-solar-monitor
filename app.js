@@ -113,6 +113,7 @@ function renderPlants(plants) {
         ? 4
         : 5;
   elements.plantGrid.style.setProperty("--plant-columns", String(desktopColumns));
+  elements.plantGrid.dataset.desktopRows = String(Math.ceil(Math.max(plantCount, 1) / desktopColumns));
 
   const fragment = document.createDocumentFragment();
   for (const plant of plants) {

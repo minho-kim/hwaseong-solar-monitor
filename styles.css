@@ -295,7 +295,13 @@ h1 {
   gap: clamp(10px, 1.1vw, 18px);
 }
 
+.plant-grid[data-desktop-rows="1"] {
+  align-content: start;
+  grid-auto-rows: clamp(300px, 38vh, 380px);
+}
+
 .plant-card {
+  container-type: inline-size;
   min-width: 0;
   min-height: 0;
   padding: clamp(15px, 1.3vw, 23px);
@@ -332,7 +338,8 @@ h1 {
 
 .plant-number {
   color: var(--green);
-  font-size: clamp(15px, 1.3vw, 22px);
+  font-size: clamp(18px, 1.5vw, 28px);
+  font-size: clamp(18px, 5.5cqi, 28px);
   font-weight: 900;
   letter-spacing: -0.03em;
 }
@@ -342,7 +349,8 @@ h1 {
   padding: 4px 8px;
   color: var(--muted);
   background: rgba(169, 193, 191, 0.1);
-  font-size: clamp(9px, 0.72vw, 12px);
+  font-size: clamp(10px, 0.9vw, 14px);
+  font-size: clamp(10px, 2.8cqi, 14px);
 }
 
 .plant-status.generating {
@@ -371,7 +379,8 @@ h1 {
   display: -webkit-box;
   overflow: hidden;
   color: #eef8f4;
-  font-size: clamp(13px, 1vw, 17px);
+  font-size: clamp(16px, 1.3vw, 22px);
+  font-size: clamp(16px, 4.5cqi, 22px);
   line-height: 1.35;
   font-weight: 750;
   letter-spacing: -0.035em;
@@ -384,7 +393,8 @@ h1 {
   margin: 4px 0 0;
   overflow: hidden;
   color: #759591;
-  font-size: clamp(10px, 0.75vw, 12px);
+  font-size: clamp(11px, 0.85vw, 14px);
+  font-size: clamp(11px, 3cqi, 14px);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -397,12 +407,14 @@ h1 {
   display: block;
   margin-bottom: 4px;
   color: var(--muted);
-  font-size: clamp(10px, 0.8vw, 13px);
+  font-size: clamp(12px, 0.9vw, 15px);
+  font-size: clamp(12px, 3cqi, 15px);
 }
 
 .plant-current {
   color: var(--sun);
-  font-size: clamp(28px, 3.1vw, 52px);
+  font-size: clamp(40px, 4vw, 72px);
+  font-size: clamp(40px, 15cqi, 72px);
   line-height: 1;
   letter-spacing: -0.06em;
   font-variant-numeric: tabular-nums;
@@ -413,7 +425,8 @@ h1 {
   padding-top: 10px;
   color: #7e9d99;
   border-top: 1px solid var(--line);
-  font-size: clamp(9px, 0.72vw, 12px);
+  font-size: clamp(11px, 0.85vw, 14px);
+  font-size: clamp(11px, 2.7cqi, 14px);
 }
 
 .detail-hint {
@@ -643,6 +656,11 @@ h1 {
     grid-auto-rows: minmax(190px, 1fr);
   }
 
+  .plant-grid[data-desktop-rows] {
+    align-content: start;
+    grid-auto-rows: minmax(230px, auto);
+  }
+
   .status-strip {
     align-items: flex-start;
     flex-direction: column;
@@ -682,9 +700,10 @@ h1 {
     min-height: 96px;
   }
 
-  .plant-grid {
+  .plant-grid,
+  .plant-grid[data-desktop-rows] {
     grid-template-columns: 1fr;
-    grid-auto-rows: minmax(190px, auto);
+    grid-auto-rows: minmax(220px, auto);
   }
 
   .detail-overview,
