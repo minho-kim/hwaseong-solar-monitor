@@ -92,8 +92,8 @@ function stateLabel(plant) {
   const labels = {
     generating: ["발전 중", "generating"],
     night: ["발전 종료", "night"],
-    stopped: ["출력 확인", "stopped"],
-    offline: ["통신 확인", "offline"],
+    stopped: ["발전 확인", "stopped"],
+    offline: ["통신 이상", "offline"],
     unknown: [plant.data_state === "pending" ? "연결 대기" : "상태 확인", "unknown"],
   };
   return labels[plant.operational_state] ?? labels.unknown;
@@ -103,7 +103,7 @@ function communicationLabel(state) {
   const labels = {
     normal: "정상",
     delayed: "수집 지연",
-    offline: "연결 끊김",
+    offline: "통신 이상",
     unknown: "확인 중",
   };
   return labels[state] ?? labels.unknown;
@@ -149,7 +149,7 @@ function renderSources(sources = []) {
     const chip = document.createElement("span");
     const state = source.sync_state === "success" ? "success" : source.sync_state === "error" ? "error" : "idle";
     chip.className = `source-chip ${state}`;
-    chip.textContent = `${source.provider} ${state === "success" ? "정상" : state === "error" ? "확인 필요" : "준비 중"}`;
+    chip.textContent = `${source.provider} ${state === "success" ? "수집 성공" : state === "error" ? "확인 필요" : "준비 중"}`;
     fragment.append(chip);
   }
   elements.sourceList.replaceChildren(fragment);
@@ -173,12 +173,12 @@ function renderDashboard(data) {
     elements.dataState.textContent = "3분 자동 갱신";
     elements.qualityBadge.className = "quality-badge live";
     elements.qualityBadge.textContent = "자동 연동";
-    elements.qualityMessage.textContent = "두 수집 사이트에서 3분마다 갱신되고 있습니다.";
+    elements.qualityMessage.textContent = "두 사이트에서 수집한 발전소별 상태를 3분마다 갱신합니다.";
   } else if (hasSourceError) {
     elements.dataState.textContent = "부분 연동";
     elements.qualityBadge.className = "quality-badge error";
     elements.qualityBadge.textContent = "연동 확인";
-    elements.qualityMessage.textContent = "마지막 정상 수집값을 표시하고 있습니다.";
+    elements.qualityMessage.textContent = "마지막 수집 성공값을 표시하고 있습니다.";
   } else {
     elements.dataState.textContent = "초기 확인값";
     elements.qualityBadge.className = "quality-badge seed";
