@@ -104,6 +104,16 @@ function communicationLabel(state) {
 }
 
 function renderPlants(plants) {
+  const plantCount = plants.length;
+  const desktopColumns = plantCount <= 5
+    ? Math.max(plantCount, 1)
+    : plantCount === 6 || plantCount === 9
+      ? 3
+      : plantCount <= 8
+        ? 4
+        : 5;
+  elements.plantGrid.style.setProperty("--plant-columns", String(desktopColumns));
+
   const fragment = document.createDocumentFragment();
   for (const plant of plants) {
     const card = elements.template.content.firstElementChild.cloneNode(true);

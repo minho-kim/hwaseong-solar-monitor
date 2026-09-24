@@ -288,8 +288,9 @@ h1 {
 .plant-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(175px, 1fr));
+  grid-template-columns: repeat(var(--plant-columns, 5), minmax(0, 1fr));
+  grid-template-rows: none;
+  grid-auto-rows: minmax(175px, 1fr);
   gap: clamp(10px, 1.1vw, 18px);
 }
 
@@ -638,7 +639,7 @@ h1 {
 
   .plant-grid {
     grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: none;
+    grid-auto-rows: minmax(190px, 1fr);
   }
 
   .status-strip {
@@ -674,6 +675,11 @@ h1 {
 
   .summary-card {
     min-height: 96px;
+  }
+
+  .plant-grid {
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(190px, auto);
   }
 
   .detail-overview,
