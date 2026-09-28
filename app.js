@@ -25,6 +25,7 @@ const configuredPlants = [
   communication_state: "unknown",
   data_state: "pending",
   fetched_at: null,
+  hourly_generation: [],
 }));
 
 const elements = {
@@ -44,6 +45,9 @@ const elements = {
   overlay: document.querySelector("#detail-overlay"),
   detailPanel: document.querySelector("#detail-panel"),
   detailClose: document.querySelector("#detail-close"),
+  hourlyChart: document.querySelector("#hourly-chart"),
+  hourlyChartValue: document.querySelector("#hourly-chart-value"),
+  hourlyChartStatus: document.querySelector("#hourly-chart-status"),
   fullscreenButton: document.querySelector("#fullscreen-button"),
 };
 
@@ -66,6 +70,12 @@ function formatEnergy(value) {
   if (number >= 1_000_000) return `${(number / 1_000_000).toLocaleString("ko-KR", { maximumFractionDigits: 2 })} GWh`;
   if (number >= 1000) return `${(number / 1000).toLocaleString("ko-KR", { maximumFractionDigits: 2 })} MWh`;
   return `${number.toLocaleString("ko-KR", { maximumFractionDigits: 1 })} kWh`;
+}
+
+function formatChartEnergy(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "--";
+  return `${number.toLocaleString("ko-KR", { maximumFractionDigits: 2 })} kWh`;
 }
 
 function formatDateTime(value, timeOnly = false) {
@@ -101,6 +111,84 @@ function communicationLabel(state) {
     unknown: "확인 중",
   };
   return labels[state] ?? labels.unknown;
+}
+
+function currentKstHour() {
+  return Number(new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date()));
+}
+
+function renderHourlyChart(readings = []) {
+  const byHour = new Map();
+  for (const reading of Array.isArray(readings) ? readings : []) {
+    const hour = Number(reading?.hour);
+    const kwh = Number(reading?.kwh);
+    const sampleCount = reading?.sample_count == null ? 1 : Number(reading.sample_count);
+    if (
+      Number.isInteger(hour) && hour >= 0 && hour <= 23 &&
+      Number.isFinite(kwh) && kwh >= 0 && Number.isFinite(sampleCount) && hour <= currentKstHour()
+    ) {
+      byHour.set(hour, { kwh, sampleCount });
+    }
+  }
+
+  const collected = [...byHour.entries()]
+    .filter(([, value]) => value.sampleCount > 0);
+  const maximum = Math.max(0, ...collected.map(([, value]) => value.kwh));
+  const latestHour = collected.at(-1)?.[0] ?? null;
+  const nowHour = currentKstHour();
+  const fragment = document.createDocumentFragment();
+
+  for (let hour = 0; hour < 24; hour += 1) {
+    const reading = byHour.get(hour);
+    const hasData = Boolean(reading && reading.sampleCount > 0);
+    const column = document.createElement("button");
+    column.type = "button";
+    column.className = `hourly-column${hasData ? " has-data" : " pending"}${hour === latestHour ? " latest" : ""}`;
+    const valueText = hasData ? formatChartEnergy(reading.kwh) : "아직 수집되지 않음";
+    column.title = `${hour}시 ${valueText}`;
+    column.setAttribute("aria-label", `${hour}시 발전량 ${valueText}`);
+    column.disabled = !hasData;
+
+    const plot = document.createElement("span");
+    plot.className = "hourly-plot";
+    const bar = document.createElement("span");
+    bar.className = "hourly-bar";
+    const height = hasData
+      ? maximum > 0 ? Math.max(3, (reading.kwh / maximum) * 100) : 3
+      : 0;
+    bar.style.setProperty("--bar-height", `${height}%`);
+    plot.append(bar);
+
+    const label = document.createElement("span");
+    label.className = "hourly-label";
+    label.textContent = [0, 6, 12, 18, 23].includes(hour) ? String(hour) : "";
+    column.append(plot, label);
+    if (hasData) {
+      column.addEventListener("click", () => {
+        elements.hourlyChart.querySelectorAll(".hourly-column.selected").forEach((item) => item.classList.remove("selected"));
+        column.classList.add("selected");
+        elements.hourlyChartValue.textContent = `${hour}시 · ${formatChartEnergy(reading.kwh)}`;
+      });
+    }
+    fragment.append(column);
+  }
+
+  elements.hourlyChart.replaceChildren(fragment);
+  if (collected.length === 0) {
+    elements.hourlyChartValue.textContent = "이력을 모으는 중";
+    elements.hourlyChartStatus.textContent = "공급사에서 오늘 시간대 자료를 받으면 그래프가 표시됩니다.";
+    return;
+  }
+
+  const latest = byHour.get(latestHour);
+  elements.hourlyChartValue.textContent = `${latestHour}시 · ${formatChartEnergy(latest.kwh)}`;
+  elements.hourlyChartStatus.textContent = latestHour === nowHour
+    ? "현재 시간대 값은 다음 3분 갱신 때 공급사 자료로 바뀝니다."
+    : "공급사 화면에서 받은 오늘 시간대별 발전량입니다.";
 }
 
 function renderPlants(plants) {
@@ -254,6 +342,7 @@ function populateDetail(plant) {
   document.querySelector("#detail-today").textContent = formatEnergy(plant.today_kwh);
   document.querySelector("#detail-lifetime").textContent = formatEnergy(plant.lifetime_kwh);
   document.querySelector("#detail-updated-at").textContent = formatDateTime(plant.fetched_at);
+  renderHourlyChart(plant.hourly_generation);
 }
 
 function setDetailOrigin(sourceCard) {
