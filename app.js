@@ -129,20 +129,18 @@ function renderPlants(plants) {
     status.textContent = statusText;
     status.classList.add(statusClass);
 
-    if (plant.detail_enabled) {
-      card.classList.add("interactive");
-      card.setAttribute("role", "button");
-      card.setAttribute("tabindex", "0");
-      card.setAttribute("aria-label", `${plant.short_name} 상세 현황 보기`);
-      card.querySelector(".detail-hint").hidden = false;
-      card.addEventListener("click", () => openDetail(plant, card));
-      card.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          openDetail(plant, card);
-        }
-      });
-    }
+    card.classList.add("interactive");
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("aria-label", `${plant.short_name} ${plant.full_name} 상세 현황 보기`);
+    card.querySelector(".detail-hint").hidden = false;
+    card.addEventListener("click", () => openDetail(plant, card));
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openDetail(plant, card);
+      }
+    });
     fragment.append(card);
   }
   elements.plantGrid.replaceChildren(fragment);
