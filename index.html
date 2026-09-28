@@ -9,7 +9,7 @@
     <title>화성시민재생에너지발전협동조합 발전 현황</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="stylesheet" href="./styles.css?v=20260928-4">
+    <link rel="stylesheet" href="./styles.css?v=20260928-5">
   </head>
   <body>
     <main class="dashboard" aria-labelledby="page-title">
@@ -151,6 +151,26 @@
           <span>현재 출력</span>
           <strong class="plant-current"></strong>
         </div>
+        <div class="plant-energy-row">
+          <div>
+            <span>오늘 인버터 종합 발전량</span>
+            <strong class="plant-today-energy"></strong>
+          </div>
+        </div>
+        <div class="plant-hourly" role="img">
+          <div class="plant-hourly-head">
+            <span>일일 시간별 발전량</span>
+            <span class="plant-hourly-latest"></span>
+          </div>
+          <div class="plant-hourly-chart"></div>
+          <div class="plant-hourly-axis">
+            <span>0시</span>
+            <span>6시</span>
+            <span>12시</span>
+            <span>18시</span>
+            <span>23시</span>
+          </div>
+        </div>
         <div class="plant-meta">
           <span class="plant-capacity"></span>
           <span class="detail-hint" hidden>상세 보기 <b aria-hidden="true">›</b></span>
@@ -158,6 +178,6 @@
       </article>
     </template>
 
-    <script src="./app.js?v=20260928-2" defer></script>
+    <script src="./app.js?v=20260928-3" defer></script>
   </body>
 </html>

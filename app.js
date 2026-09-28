@@ -78,6 +78,23 @@ function formatChartEnergy(value) {
   return `${number.toLocaleString("ko-KR", { maximumFractionDigits: 2 })} kWh`;
 }
 
+function normalizeHourlyReadings(readings = []) {
+  const byHour = new Map();
+  for (const reading of Array.isArray(readings) ? readings : []) {
+    const hour = Number(reading?.hour);
+    const kwh = Number(reading?.kwh);
+    const sampleCount = reading?.sample_count == null ? 1 : Number(reading.sample_count);
+    if (
+      Number.isInteger(hour) && hour >= 0 && hour <= 23 &&
+      Number.isFinite(kwh) && kwh >= 0 && Number.isFinite(sampleCount) &&
+      sampleCount > 0 && hour <= currentKstHour()
+    ) {
+      byHour.set(hour, { kwh, sampleCount });
+    }
+  }
+  return byHour;
+}
+
 function formatDateTime(value, timeOnly = false) {
   if (!value) return "--";
   const date = new Date(value);
@@ -122,24 +139,11 @@ function currentKstHour() {
 }
 
 function renderHourlyChart(readings = []) {
-  const byHour = new Map();
-  for (const reading of Array.isArray(readings) ? readings : []) {
-    const hour = Number(reading?.hour);
-    const kwh = Number(reading?.kwh);
-    const sampleCount = reading?.sample_count == null ? 1 : Number(reading.sample_count);
-    if (
-      Number.isInteger(hour) && hour >= 0 && hour <= 23 &&
-      Number.isFinite(kwh) && kwh >= 0 && Number.isFinite(sampleCount) && hour <= currentKstHour()
-    ) {
-      byHour.set(hour, { kwh, sampleCount });
-    }
-  }
+  const byHour = normalizeHourlyReadings(readings);
 
-  const collected = [...byHour.entries()]
-    .filter(([, value]) => value.sampleCount > 0);
+  const collected = [...byHour.entries()];
   const maximum = Math.max(0, ...collected.map(([, value]) => value.kwh));
   const latestHour = collected.at(-1)?.[0] ?? null;
-  const nowHour = currentKstHour();
   const fragment = document.createDocumentFragment();
 
   for (let hour = 0; hour < 24; hour += 1) {
@@ -186,9 +190,40 @@ function renderHourlyChart(readings = []) {
 
   const latest = byHour.get(latestHour);
   elements.hourlyChartValue.textContent = `${latestHour}시 · ${formatChartEnergy(latest.kwh)}`;
-  elements.hourlyChartStatus.textContent = latestHour === nowHour
-    ? "현재 시간대 값은 다음 3분 갱신 때 공급사 자료로 바뀝니다."
-    : "공급사 화면에서 받은 오늘 시간대별 발전량입니다.";
+  elements.hourlyChartStatus.textContent = "공급사 화면에서 받은 오늘 시간대별 발전량입니다.";
+}
+
+function renderPlantHourlyChart(card, plant) {
+  const byHour = normalizeHourlyReadings(plant.hourly_generation);
+  const collected = [...byHour.entries()];
+  const maximum = Math.max(0, ...collected.map(([, value]) => value.kwh));
+  const latestEntry = collected.at(-1);
+  const chart = card.querySelector(".plant-hourly-chart");
+  const latest = card.querySelector(".plant-hourly-latest");
+  const fragment = document.createDocumentFragment();
+
+  for (let hour = 0; hour < 24; hour += 1) {
+    const reading = byHour.get(hour);
+    const bar = document.createElement("span");
+    bar.className = `plant-hourly-bar${reading ? " has-data" : ""}${latestEntry?.[0] === hour ? " latest" : ""}`;
+    const height = reading
+      ? maximum > 0 ? Math.max(5, (reading.kwh / maximum) * 100) : 5
+      : 0;
+    bar.style.setProperty("--mini-bar-height", `${height}%`);
+    fragment.append(bar);
+  }
+
+  chart.replaceChildren(fragment);
+  if (latestEntry) {
+    latest.textContent = `${latestEntry[0]}시 ${formatChartEnergy(latestEntry[1].kwh)}`;
+    card.querySelector(".plant-hourly").setAttribute(
+      "aria-label",
+      `${plant.short_name} 오늘 시간대별 발전량, 최근 ${latestEntry[0]}시 ${formatChartEnergy(latestEntry[1].kwh)}`,
+    );
+  } else {
+    latest.textContent = "시간대 자료 준비 중";
+    card.querySelector(".plant-hourly").setAttribute("aria-label", `${plant.short_name} 시간대 자료 준비 중`);
+  }
 }
 
 function renderPlants(plants) {
@@ -212,6 +247,7 @@ function renderPlants(plants) {
     card.querySelector(".plant-name").textContent = plant.full_name;
     card.querySelector(".plant-location").textContent = plant.location_label || "화성시";
     card.querySelector(".plant-current").textContent = formatPower(plant.current_kw);
+    card.querySelector(".plant-today-energy").textContent = formatChartEnergy(plant.today_kwh);
     card.querySelector(".plant-capacity").textContent = `설비 ${formatPower(plant.capacity_kw)}`;
     const status = card.querySelector(".plant-status");
     status.textContent = statusText;
@@ -222,6 +258,7 @@ function renderPlants(plants) {
     card.setAttribute("tabindex", "0");
     card.setAttribute("aria-label", `${plant.short_name} ${plant.full_name} 상세 현황 보기`);
     card.querySelector(".detail-hint").hidden = false;
+    renderPlantHourlyChart(card, plant);
     card.addEventListener("click", () => openDetail(plant, card));
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
