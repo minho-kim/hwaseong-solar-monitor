@@ -749,6 +749,49 @@ h1 {
   border-radius: 18px;
 }
 
+.chart-tabs {
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 18px;
+  padding: 4px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(72px, 1fr));
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.chart-tab {
+  min-height: 44px;
+  padding: 8px 18px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.chart-tab:hover,
+.chart-tab:focus-visible {
+  color: var(--text);
+  outline: none;
+}
+
+.chart-tab:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--green);
+}
+
+.chart-tab.is-active {
+  color: #08231d;
+  background: var(--green);
+  box-shadow: 0 8px 22px rgba(101, 220, 157, 0.2);
+}
+
 .detail-chart-heading {
   display: flex;
   align-items: flex-end;
@@ -794,6 +837,19 @@ h1 {
     transparent 1px,
     transparent 33.333%
   );
+}
+
+.hourly-chart.period-chart {
+  grid-template-columns: repeat(var(--period-columns, 1), minmax(10px, 1fr));
+}
+
+.period-column .hourly-bar {
+  background: linear-gradient(180deg, #72dda2, #22a87f 72%, #147862);
+  box-shadow: 0 0 16px rgba(101, 220, 157, 0.18);
+}
+
+.period-column.latest .hourly-bar {
+  background: linear-gradient(180deg, var(--sun), #ff9f43 72%, #e77d28);
 }
 
 .hourly-column {
@@ -935,6 +991,15 @@ h1 {
     align-items: flex-start;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .chart-tabs {
+    width: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .chart-tab {
+    padding-inline: 8px;
   }
 
   .hourly-chart {

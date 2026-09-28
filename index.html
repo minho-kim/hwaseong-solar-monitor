@@ -9,7 +9,7 @@
     <title>화성시민재생에너지발전협동조합 발전 현황</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="stylesheet" href="./styles.css?v=20260928-5">
+    <link rel="stylesheet" href="./styles.css?v=20260928-6">
   </head>
   <body>
     <main class="dashboard" aria-labelledby="page-title">
@@ -122,11 +122,17 @@
             <strong id="detail-lifetime">--</strong>
           </article>
         </div>
-        <section class="detail-chart" aria-labelledby="hourly-chart-title">
+        <section class="detail-chart" aria-labelledby="period-chart-title">
+          <div id="chart-tabs" class="chart-tabs" role="tablist" aria-label="발전량 조회 기간">
+            <button class="chart-tab is-active" type="button" role="tab" aria-selected="true" data-period="day">일일</button>
+            <button class="chart-tab" type="button" role="tab" aria-selected="false" data-period="week">주간</button>
+            <button class="chart-tab" type="button" role="tab" aria-selected="false" data-period="month">월간</button>
+            <button class="chart-tab" type="button" role="tab" aria-selected="false" data-period="cumulative">누적</button>
+          </div>
           <div class="detail-chart-heading">
             <div>
-              <p>오늘 발전 흐름</p>
-              <h3 id="hourly-chart-title">시간별 발전량</h3>
+              <p id="period-chart-eyebrow">오늘 발전 흐름</p>
+              <h3 id="period-chart-title">시간별 발전량</h3>
             </div>
             <strong id="hourly-chart-value">이력을 모으는 중</strong>
           </div>
@@ -178,6 +184,6 @@
       </article>
     </template>
 
-    <script src="./app.js?v=20260928-3" defer></script>
+    <script src="./app.js?v=20260928-5" defer></script>
   </body>
 </html>

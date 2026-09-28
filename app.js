@@ -26,6 +26,9 @@ const configuredPlants = [
   data_state: "pending",
   fetched_at: null,
   hourly_generation: [],
+  weekly_generation: [],
+  monthly_generation: [],
+  cumulative_generation: [],
 }));
 
 const elements = {
@@ -48,6 +51,9 @@ const elements = {
   hourlyChart: document.querySelector("#hourly-chart"),
   hourlyChartValue: document.querySelector("#hourly-chart-value"),
   hourlyChartStatus: document.querySelector("#hourly-chart-status"),
+  chartTabs: document.querySelector("#chart-tabs"),
+  periodChartEyebrow: document.querySelector("#period-chart-eyebrow"),
+  periodChartTitle: document.querySelector("#period-chart-title"),
   fullscreenButton: document.querySelector("#fullscreen-button"),
 };
 
@@ -56,6 +62,8 @@ let refreshTimer = null;
 let detailCloseTimer = null;
 let selectedPlantOrder = null;
 let detailTrigger = null;
+let selectedPeriod = "day";
+let selectedDetailPlant = null;
 
 function formatPower(value, { compact = false } = {}) {
   const number = Number(value);
@@ -191,6 +199,107 @@ function renderHourlyChart(readings = []) {
   const latest = byHour.get(latestHour);
   elements.hourlyChartValue.textContent = `${latestHour}시 · ${formatChartEnergy(latest.kwh)}`;
   elements.hourlyChartStatus.textContent = "공급사 화면에서 받은 오늘 시간대별 발전량입니다.";
+}
+
+function normalizePeriodRows(rows, keyName) {
+  return (Array.isArray(rows) ? rows : []).flatMap((row) => {
+    const key = String(row?.[keyName] ?? "");
+    const kwh = Number(row?.kwh);
+    return key && Number.isFinite(kwh) && kwh >= 0 ? [{ key, kwh }] : [];
+  }).sort((left, right) => left.key.localeCompare(right.key));
+}
+
+function periodLabel(key, period) {
+  if (period === "cumulative") return `${Number(key.slice(5, 7))}월`;
+  const [, month, day] = key.split("-");
+  return `${Number(month)}/${Number(day)}`;
+}
+
+function renderPeriodBars(plant, period) {
+  const settings = {
+    week: {
+      rows: normalizePeriodRows(plant.weekly_generation, "date"),
+      eyebrow: "최근 7일 발전 흐름",
+      title: "일별 발전량",
+      status: "최근 7일의 일별 발전량입니다.",
+    },
+    month: {
+      rows: normalizePeriodRows(plant.monthly_generation, "date"),
+      eyebrow: "이번 달 발전 흐름",
+      title: "일별 발전량",
+      status: "이번 달 1일부터 오늘까지의 일별 발전량입니다.",
+    },
+    cumulative: {
+      rows: normalizePeriodRows(plant.cumulative_generation, "month"),
+      eyebrow: "누적 발전 흐름 · 최근 13개월",
+      title: "월별 발전량",
+      status: `그래프는 최근 13개월이며, 전체 누적 발전량은 ${formatEnergy(plant.lifetime_kwh)}입니다.`,
+    },
+  }[period];
+  const rows = settings.rows;
+  const maximum = Math.max(0, ...rows.map((row) => row.kwh));
+  const fragment = document.createDocumentFragment();
+  elements.periodChartEyebrow.textContent = settings.eyebrow;
+  elements.periodChartTitle.textContent = settings.title;
+  elements.hourlyChart.classList.add("period-chart");
+  elements.hourlyChart.setAttribute("aria-label", `${settings.eyebrow} 막대그래프`);
+  elements.hourlyChart.style.setProperty("--period-columns", String(Math.max(rows.length, 1)));
+
+  for (const [index, row] of rows.entries()) {
+    const column = document.createElement("button");
+    column.type = "button";
+    column.className = `hourly-column period-column has-data${index === rows.length - 1 ? " latest" : ""}`;
+    const labelText = periodLabel(row.key, period);
+    column.title = `${labelText} ${formatChartEnergy(row.kwh)}`;
+    column.setAttribute("aria-label", `${labelText} 발전량 ${formatChartEnergy(row.kwh)}`);
+    const plot = document.createElement("span");
+    plot.className = "hourly-plot";
+    const bar = document.createElement("span");
+    bar.className = "hourly-bar";
+    bar.style.setProperty("--bar-height", `${maximum > 0 ? Math.max(3, (row.kwh / maximum) * 100) : 3}%`);
+    plot.append(bar);
+    const label = document.createElement("span");
+    label.className = "hourly-label";
+    const showEvery = rows.length > 20 ? 5 : rows.length > 14 ? 3 : 1;
+    label.textContent = index % showEvery === 0 || index === rows.length - 1 ? labelText : "";
+    column.append(plot, label);
+    column.addEventListener("click", () => {
+      elements.hourlyChart.querySelectorAll(".hourly-column.selected").forEach((item) => item.classList.remove("selected"));
+      column.classList.add("selected");
+      elements.hourlyChartValue.textContent = `${labelText} · ${formatChartEnergy(row.kwh)}`;
+    });
+    fragment.append(column);
+  }
+  elements.hourlyChart.replaceChildren(fragment);
+  elements.hourlyChartStatus.textContent = settings.status;
+  if (rows.length === 0) {
+    elements.hourlyChartValue.textContent = "기간 자료 준비 중";
+    elements.hourlyChartStatus.textContent = "기간별 자료는 자정부터 오전 7시 사이에 하루 한 번 갱신됩니다.";
+  } else if (period === "cumulative") {
+    elements.hourlyChartValue.textContent = `전체 누적 · ${formatEnergy(plant.lifetime_kwh)}`;
+  } else {
+    const total = rows.reduce((sum, row) => sum + row.kwh, 0);
+    elements.hourlyChartValue.textContent = `${period === "week" ? "7일" : "이번 달"} 합계 · ${formatEnergy(total)}`;
+  }
+}
+
+function renderDetailChart(plant) {
+  for (const tab of elements.chartTabs.querySelectorAll(".chart-tab")) {
+    const active = tab.dataset.period === selectedPeriod;
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+  }
+  if (selectedPeriod === "day") {
+    elements.periodChartEyebrow.textContent = "오늘 발전 흐름";
+    elements.periodChartTitle.textContent = "시간별 발전량";
+    elements.hourlyChart.classList.remove("period-chart");
+    elements.hourlyChart.setAttribute("aria-label", "오늘 시간별 발전량 막대그래프");
+    elements.hourlyChart.style.removeProperty("--period-columns");
+    renderHourlyChart(plant.hourly_generation);
+    return;
+  }
+  renderPeriodBars(plant, selectedPeriod);
 }
 
 function renderPlantHourlyChart(card, plant) {
@@ -367,6 +476,7 @@ async function fetchDashboard() {
 }
 
 function populateDetail(plant) {
+  selectedDetailPlant = plant;
   const [statusText] = stateLabel(plant);
   document.querySelector("#detail-number").textContent = plant.short_name;
   document.querySelector("#detail-title").textContent = plant.full_name;
@@ -379,7 +489,7 @@ function populateDetail(plant) {
   document.querySelector("#detail-today").textContent = formatEnergy(plant.today_kwh);
   document.querySelector("#detail-lifetime").textContent = formatEnergy(plant.lifetime_kwh);
   document.querySelector("#detail-updated-at").textContent = formatDateTime(plant.fetched_at);
-  renderHourlyChart(plant.hourly_generation);
+  renderDetailChart(plant);
 }
 
 function setDetailOrigin(sourceCard) {
@@ -399,6 +509,7 @@ function setDetailOrigin(sourceCard) {
 function openDetail(plant, sourceCard) {
   window.clearTimeout(detailCloseTimer);
   selectedPlantOrder = plant.display_order;
+  selectedPeriod = "day";
   detailTrigger = sourceCard;
   populateDetail(plant);
   elements.overlay.hidden = false;
@@ -437,6 +548,25 @@ async function toggleFullscreen() {
 }
 
 elements.detailClose.addEventListener("click", closeDetail);
+elements.chartTabs.addEventListener("click", (event) => {
+  const tab = event.target.closest(".chart-tab");
+  if (!tab || !selectedDetailPlant) return;
+  selectedPeriod = tab.dataset.period;
+  renderDetailChart(selectedDetailPlant);
+});
+elements.chartTabs.addEventListener("keydown", (event) => {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  const tabs = [...elements.chartTabs.querySelectorAll(".chart-tab")];
+  const currentIndex = tabs.findIndex((tab) => tab.dataset.period === selectedPeriod);
+  let nextIndex = currentIndex;
+  if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+  if (event.key === "Home") nextIndex = 0;
+  if (event.key === "End") nextIndex = tabs.length - 1;
+  event.preventDefault();
+  tabs[nextIndex].click();
+  tabs[nextIndex].focus();
+});
 elements.overlay.addEventListener("click", (event) => {
   if (event.target === elements.overlay) closeDetail();
 });
