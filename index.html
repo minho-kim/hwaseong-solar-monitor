@@ -9,7 +9,7 @@
     <title>화성시민재생에너지발전협동조합 발전 현황</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="stylesheet" href="./styles.css?v=20260928-6">
+    <link rel="stylesheet" href="./styles.css?v=20260929-1">
   </head>
   <body>
     <main class="dashboard" aria-labelledby="page-title">
@@ -56,12 +56,12 @@
         <article class="summary-card today">
           <span class="summary-label">오늘 발전량</span>
           <strong id="total-today">--</strong>
-          <span class="summary-caption">오늘 자정부터</span>
+          <span class="summary-caption" id="today-caption">오늘 자정부터</span>
         </article>
         <article class="summary-card lifetime">
           <span class="summary-label">누적 발전량</span>
           <strong id="total-lifetime">--</strong>
-          <span class="summary-caption">전체 발전소 합계</span>
+          <span class="summary-caption" id="lifetime-caption">전체 발전소 합계</span>
         </article>
       </section>
 
@@ -108,6 +108,7 @@
             <strong id="detail-communication">--</strong>
           </div>
         </div>
+        <p id="detail-collection-note" class="detail-collection-note" hidden></p>
         <div class="detail-metrics">
           <article>
             <span>현재 발전량</span>
@@ -184,6 +185,6 @@
       </article>
     </template>
 
-    <script src="./app.js?v=20260928-5" defer></script>
+    <script src="./app.js?v=20260929-1" defer></script>
   </body>
 </html>

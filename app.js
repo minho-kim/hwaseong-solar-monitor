@@ -38,6 +38,9 @@ const elements = {
   totalCurrent: document.querySelector("#total-current"),
   totalToday: document.querySelector("#total-today"),
   totalLifetime: document.querySelector("#total-lifetime"),
+  currentCaption: document.querySelector("#current-caption"),
+  todayCaption: document.querySelector("#today-caption"),
+  lifetimeCaption: document.querySelector("#lifetime-caption"),
   plantCount: document.querySelector("#plant-count"),
   updatedAt: document.querySelector("#updated-at"),
   dataState: document.querySelector("#data-state"),
@@ -54,10 +57,12 @@ const elements = {
   chartTabs: document.querySelector("#chart-tabs"),
   periodChartEyebrow: document.querySelector("#period-chart-eyebrow"),
   periodChartTitle: document.querySelector("#period-chart-title"),
+  detailCollectionNote: document.querySelector("#detail-collection-note"),
   fullscreenButton: document.querySelector("#fullscreen-button"),
 };
 
 let currentData = null;
+let dashboardFetchFailed = false;
 let refreshTimer = null;
 let detailCloseTimer = null;
 let selectedPlantOrder = null;
@@ -136,6 +141,29 @@ function communicationLabel(state) {
     unknown: "확인 중",
   };
   return labels[state] ?? labels.unknown;
+}
+
+function kstDateKey(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function isTodaySnapshot(plant) {
+  return kstDateKey(plant.fetched_at) === kstDateKey(Date.now());
+}
+
+function isPlantDataDelayed(plant, sources = []) {
+  if (plant.data_state !== "live") return false;
+  const source = sources.find((item) => item.provider === plant.provider);
+  const fetchedAt = Date.parse(plant.fetched_at);
+  return dashboardFetchFailed || source?.sync_state !== "success" ||
+    !Number.isFinite(fetchedAt) || Date.now() - fetchedAt > 600_000;
 }
 
 function currentKstHour() {
@@ -335,7 +363,7 @@ function renderPlantHourlyChart(card, plant) {
   }
 }
 
-function renderPlants(plants) {
+function renderPlants(plants, sources = []) {
   const plantCount = plants.length;
   const desktopColumns = plantCount <= 5
     ? Math.max(plantCount, 1)
@@ -351,12 +379,15 @@ function renderPlants(plants) {
   for (const plant of plants) {
     const card = elements.template.content.firstElementChild.cloneNode(true);
     card.dataset.plantOrder = String(plant.display_order);
-    const [statusText, statusClass] = stateLabel(plant);
+    const delayed = isPlantDataDelayed(plant, sources);
+    const [statusText, statusClass] = delayed ? ["수집 지연", "delayed"] : stateLabel(plant);
     card.querySelector(".plant-number").textContent = plant.short_name;
     card.querySelector(".plant-name").textContent = plant.full_name;
     card.querySelector(".plant-location").textContent = plant.location_label || "화성시";
-    card.querySelector(".plant-current").textContent = formatPower(plant.current_kw);
-    card.querySelector(".plant-today-energy").textContent = formatChartEnergy(plant.today_kwh);
+    card.querySelector(".plant-current").textContent = delayed ? "--" : formatPower(plant.current_kw);
+    card.querySelector(".plant-today-energy").textContent = isTodaySnapshot(plant)
+      ? formatChartEnergy(plant.today_kwh)
+      : "--";
     card.querySelector(".plant-capacity").textContent = `설비 ${formatPower(plant.capacity_kw)}`;
     const status = card.querySelector(".plant-status");
     status.textContent = statusText;
@@ -380,50 +411,72 @@ function renderPlants(plants) {
   elements.plantGrid.replaceChildren(fragment);
 }
 
-function renderSources(sources = []) {
+function renderSources(sources = [], delayedPlants = []) {
   const fragment = document.createDocumentFragment();
   for (const source of sources) {
     const chip = document.createElement("span");
-    const state = source.sync_state === "success" ? "success" : source.sync_state === "error" ? "error" : "idle";
+    const delayed = delayedPlants.some((plant) => plant.provider === source.provider);
+    const state = source.sync_state === "error" || delayed
+      ? "error"
+      : source.sync_state === "success" ? "success" : "idle";
     chip.className = `source-chip ${state}`;
-    chip.textContent = `${source.provider} ${state === "success" ? "수집 성공" : state === "error" ? "확인 필요" : "준비 중"}`;
+    chip.textContent = `${source.provider} ${state === "success" ? "수집 성공" : state === "error" ? "수집 지연" : "준비 중"}`;
     fragment.append(chip);
   }
   elements.sourceList.replaceChildren(fragment);
 }
 
 function renderDashboard(data) {
+  dashboardFetchFailed = false;
   currentData = data;
   const plants = Array.isArray(data.plants) ? data.plants : configuredPlants;
   const summary = data.summary ?? {};
+  const sources = Array.isArray(data.sources) ? data.sources : [];
+  const delayedPlants = plants.filter((plant) => isPlantDataDelayed(plant, sources));
+  const currentPlants = plants.filter((plant) => plant.data_state === "live" && !isPlantDataDelayed(plant, sources));
   elements.totalCapacity.textContent = formatPower(summary.total_capacity_kw, { compact: true });
-  elements.totalCurrent.textContent = formatPower(summary.current_kw, { compact: true });
-  elements.totalToday.textContent = formatEnergy(summary.today_kwh);
+  elements.totalCurrent.textContent = delayedPlants.length
+    ? currentPlants.length
+      ? formatPower(currentPlants.reduce((sum, plant) => sum + Number(plant.current_kw || 0), 0), { compact: true })
+      : "--"
+    : formatPower(summary.current_kw, { compact: true });
+  const todayPlants = plants.filter((plant) => isTodaySnapshot(plant));
+  elements.totalToday.textContent = delayedPlants.length && todayPlants.length !== plants.length
+    ? todayPlants.length
+      ? formatEnergy(todayPlants.reduce((sum, plant) => sum + Number(plant.today_kwh || 0), 0))
+      : "--"
+    : formatEnergy(summary.today_kwh);
   elements.totalLifetime.textContent = formatEnergy(summary.lifetime_kwh);
+  elements.currentCaption.textContent = delayedPlants.length ? "수집 중인 발전소 합계" : "최근 수집 합계";
+  elements.todayCaption.textContent = delayedPlants.length
+    ? todayPlants.length === plants.length
+      ? "일부 발전소 마지막 수집값 포함"
+      : "오늘값이 없는 발전소는 제외"
+    : "오늘 자정부터";
+  elements.lifetimeCaption.textContent = delayedPlants.length ? "일부 발전소 마지막 수집값 포함" : "전체 발전소 합계";
   elements.plantCount.textContent = String(summary.plant_count ?? plants.length);
   elements.updatedAt.textContent = formatDateTime(data.last_updated, true);
   elements.connectionDot.className = "connection-dot online";
 
-  const sources = Array.isArray(data.sources) ? data.sources : [];
   const hasSourceError = sources.some((source) => source.sync_state === "error");
-  if (data.is_live) {
+  if (data.is_live && delayedPlants.length === 0) {
     elements.dataState.textContent = "3분 자동 갱신";
     elements.qualityBadge.className = "quality-badge live";
     elements.qualityBadge.textContent = "자동 연동";
     elements.qualityMessage.textContent = "두 사이트에서 수집한 발전소별 상태를 3분마다 갱신합니다.";
-  } else if (hasSourceError) {
+  } else if (hasSourceError || delayedPlants.length > 0) {
     elements.dataState.textContent = "부분 연동";
     elements.qualityBadge.className = "quality-badge error";
     elements.qualityBadge.textContent = "연동 확인";
-    elements.qualityMessage.textContent = "마지막 수집 성공값을 표시하고 있습니다.";
+    elements.qualityMessage.textContent = "수집 지연 발전소의 마지막 확인 시각을 상세 화면에서 확인할 수 있습니다.";
   } else {
     elements.dataState.textContent = "초기 확인값";
     elements.qualityBadge.className = "quality-badge seed";
     elements.qualityBadge.textContent = "초기 확인값";
     elements.qualityMessage.textContent = "계정 보안 설정 후 자동 갱신으로 전환됩니다.";
   }
-  renderSources(sources);
-  renderPlants(plants);
+  renderSources(sources, delayedPlants);
+  renderPlants(plants, sources);
 
   if (selectedPlantOrder !== null) {
     const selected = plants.find((plant) => plant.display_order === selectedPlantOrder);
@@ -432,6 +485,7 @@ function renderDashboard(data) {
 }
 
 function renderLoadError() {
+  dashboardFetchFailed = true;
   elements.dataState.textContent = "연결 확인";
   elements.updatedAt.textContent = "--:--";
   elements.connectionDot.className = "connection-dot error";
@@ -445,6 +499,22 @@ function renderLoadError() {
     elements.totalLifetime.textContent = "--";
     elements.plantCount.textContent = String(configuredPlants.length);
     renderPlants(configuredPlants);
+  } else {
+    const delayedPlants = currentData.plants.filter((plant) => isPlantDataDelayed(plant, currentData.sources));
+    const todayPlants = currentData.plants.filter((plant) => isTodaySnapshot(plant));
+    elements.totalCurrent.textContent = "--";
+    elements.currentCaption.textContent = "현재값 확인 불가";
+    elements.totalToday.textContent = todayPlants.length
+      ? formatEnergy(todayPlants.reduce((sum, plant) => sum + Number(plant.today_kwh || 0), 0))
+      : "--";
+    elements.todayCaption.textContent = "마지막 수집값";
+    elements.lifetimeCaption.textContent = "마지막 수집값";
+    renderSources(currentData.sources, delayedPlants);
+    renderPlants(currentData.plants, currentData.sources);
+    if (selectedPlantOrder !== null) {
+      const selected = currentData.plants.find((plant) => plant.display_order === selectedPlantOrder);
+      if (selected) populateDetail(selected);
+    }
   }
 }
 
@@ -478,17 +548,24 @@ async function fetchDashboard() {
 function populateDetail(plant) {
   selectedDetailPlant = plant;
   const [statusText] = stateLabel(plant);
+  const delayed = isPlantDataDelayed(plant, currentData?.sources);
   document.querySelector("#detail-number").textContent = plant.short_name;
   document.querySelector("#detail-title").textContent = plant.full_name;
   document.querySelector("#detail-location").textContent = plant.location_label || "화성시";
   document.querySelector("#detail-capacity").textContent = formatPower(plant.capacity_kw);
   document.querySelector("#detail-provider").textContent = plant.provider;
-  document.querySelector("#detail-status").textContent = statusText;
-  document.querySelector("#detail-communication").textContent = communicationLabel(plant.communication_state);
-  document.querySelector("#detail-current").textContent = formatPower(plant.current_kw);
-  document.querySelector("#detail-today").textContent = formatEnergy(plant.today_kwh);
+  document.querySelector("#detail-status").textContent = delayed ? "현재 확인 불가" : statusText;
+  document.querySelector("#detail-communication").textContent = delayed ? "현재 확인 불가" : communicationLabel(plant.communication_state);
+  document.querySelector("#detail-current").textContent = delayed ? "--" : formatPower(plant.current_kw);
+  document.querySelector("#detail-today").textContent = isTodaySnapshot(plant) ? formatEnergy(plant.today_kwh) : "--";
   document.querySelector("#detail-lifetime").textContent = formatEnergy(plant.lifetime_kwh);
   document.querySelector("#detail-updated-at").textContent = formatDateTime(plant.fetched_at);
+  elements.detailCollectionNote.hidden = !delayed;
+  elements.detailCollectionNote.textContent = delayed
+    ? isTodaySnapshot(plant)
+      ? `${plant.provider} 자료 수집이 지연되고 있습니다. 오늘·누적 발전량은 ${formatDateTime(plant.fetched_at)} 마지막 수집값이며 이후 발전량은 반영되지 않았습니다.`
+      : `${plant.provider} 자료 수집이 지연되고 있습니다. 오늘 발전량은 확인할 수 없으며 누적 발전량은 ${formatDateTime(plant.fetched_at)} 마지막 수집값입니다.`
+    : "";
   renderDetailChart(plant);
 }
 
