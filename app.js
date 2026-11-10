@@ -4,6 +4,8 @@ const SUPABASE_URL = "https://ifdqlwxgqgsvnawmhlfc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_lkVhLJDe8WmOPzsWOMkKdg_pjVwVS-h";
 const DASHBOARD_SLUG = "hwaseong-renewable-energy";
 const DEFAULT_REFRESH_MS = 180_000;
+// 10 minutes to collect, 3 to sync, 3 to refresh the page, and 2 for scheduling variation.
+const NREMS_STALE_AFTER_MS = 18 * 60_000;
 
 const configuredPlants = [
   [1, "1호기", "RE빛제1호 태양광발전소", "", 189.38, "NREMS"],
@@ -162,8 +164,9 @@ function isPlantDataDelayed(plant, sources = []) {
   if (plant.data_state !== "live") return false;
   const source = sources.find((item) => item.provider === plant.provider);
   const fetchedAt = Date.parse(plant.fetched_at);
+  const staleAfterMs = plant.provider === "NREMS" ? NREMS_STALE_AFTER_MS : 600_000;
   return dashboardFetchFailed || source?.sync_state !== "success" ||
-    !Number.isFinite(fetchedAt) || Date.now() - fetchedAt > 600_000;
+    !Number.isFinite(fetchedAt) || Date.now() - fetchedAt > staleAfterMs;
 }
 
 function currentKstHour() {
@@ -463,7 +466,7 @@ function renderDashboard(data) {
     elements.dataState.textContent = "3분 자동 갱신";
     elements.qualityBadge.className = "quality-badge live";
     elements.qualityBadge.textContent = "자동 연동";
-    elements.qualityMessage.textContent = "두 사이트에서 수집한 발전소별 상태를 3분마다 갱신합니다.";
+    elements.qualityMessage.textContent = "화면은 3분마다 갱신합니다. NREMS는 10분, PVEYES는 3분마다 수집합니다.";
   } else if (hasSourceError || delayedPlants.length > 0) {
     elements.dataState.textContent = "부분 연동";
     elements.qualityBadge.className = "quality-badge error";
