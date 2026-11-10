@@ -463,7 +463,7 @@ function renderDashboard(data) {
 
   const hasSourceError = sources.some((source) => source.sync_state === "error");
   if (data.is_live && delayedPlants.length === 0) {
-    elements.dataState.textContent = "3분 자동 갱신";
+    elements.dataState.textContent = "최근 갱신 시각";
     elements.qualityBadge.className = "quality-badge live";
     elements.qualityBadge.textContent = "자동 연동";
     elements.qualityMessage.textContent = "화면은 3분마다 갱신합니다. NREMS는 10분, PVEYES는 3분마다 수집합니다.";
